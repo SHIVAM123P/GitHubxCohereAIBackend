@@ -7,22 +7,14 @@ const app = express();
 // CORS configuration with specific origin
 const allowedOrigins = ['http://localhost:3000', 'https://git-statss.netlify.app/'];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
-}));
+app.use(cors());
 
 
 app.use(express.json());
 
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 // User Count Schema
 const UserCountSchema = new mongoose.Schema({
   count: { type: Number, default: 0 }
@@ -44,6 +36,10 @@ const LeaderboardSchema = new mongoose.Schema({
 
 const Leaderboard = mongoose.model('Leaderboard', LeaderboardSchema);
 
+
+app.get('/', (req, res) => {
+  res.send('GitHubxCohereAI Backend is running');
+});
 // Get user count endpoint
 app.get('/api/user-count', async (req, res) => {
   try {
@@ -115,7 +111,7 @@ app.post('/api/update-leaderboard', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 
 // Debug: Log environment variables
 // console.log('COHERE_API_KEY:', process.env.CO_API_KEY);
