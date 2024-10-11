@@ -51,7 +51,7 @@ app.get('/share/:username', async (req, res) => {
     // Get the image URL from your database or another source if it's stored.
     // Assuming you have saved the Imgbb image URL in your database or pass it as a query.
     const imageUrl = req.query.imageUrl;
-    onsole.log('imageUrl',imageUrl);
+    console.log('imageUrl',imageUrl);
     if (!imageUrl) {
       return res.status(400).send('Image URL is required');
     }
