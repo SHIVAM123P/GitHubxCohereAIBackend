@@ -1,90 +1,125 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-require('dotenv').config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 // CORS configuration with specific origin
-const allowedOrigins = ['http://localhost:3000', 'https://git-statss.netlify.app/'];
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://git-statss.netlify.app/",
+];
 
 app.use(cors());
-
-
 app.use(express.json());
 
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+mongoose
+  .connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((err) => console.error("MongoDB connection error:", err));
 // User Count Schema
 const UserCountSchema = new mongoose.Schema({
-  count: { type: Number, default: 0 }
+  count: { type: Number, default: 0 },
 });
 
-const UserCount = mongoose.model('UserCount', UserCountSchema);
+const UserCount = mongoose.model("UserCount", UserCountSchema);
 
 // Leaderboard Schema
 const LeaderboardSchema = new mongoose.Schema({
   topContributions: {
     username: String,
-    contributions: Number
+    contributions: Number,
   },
   topFollowers: {
     username: String,
-    followers: Number
+    followers: Number,
+  },
+});
+
+const Leaderboard = mongoose.model("Leaderboard", LeaderboardSchema);
+
+app.get("/", (req, res) => {
+  res.send("GitHubxCohereAI Backend is running");
+});
+
+// Backend: Add this to your existing schemas
+const SharedBannerSchema = new mongoose.Schema({
+  username: String,
+  imageUrl: String,
+  userData: Object,
+});
+
+const SharedBanner = mongoose.model("SharedBanner", SharedBannerSchema);
+
+// Update the save-shared-banner endpoint
+app.post("/api/save-shared-banner", async (req, res) => {
+  try {
+    const { username, imageUrl, userData } = req.body;
+    let sharedBanner = await SharedBanner.findOne({ username });
+    if (sharedBanner) {
+      sharedBanner.imageUrl = imageUrl;
+      sharedBanner.userData = userData;
+    } else {
+      sharedBanner = new SharedBanner({ username, imageUrl, userData });
+    }
+    await sharedBanner.save();
+    res.json({ message: "Shared banner saved successfully" });
+  } catch (error) {
+    console.error("Error saving shared banner:", error);
+    res.status(500).json({ error: "Error saving shared banner" });
   }
 });
 
-const Leaderboard = mongoose.model('Leaderboard', LeaderboardSchema);
-
-
-app.get('/', (req, res) => {
-  res.send('GitHubxCohereAI Backend is running');
-});
-
-
-
-// New route to serve the HTML for the Twitter Card
-app.get('/share/:username', async (req, res) => {
+// Update the user retrieval endpoint
+app.get("/api/user/:username", async (req, res) => {
   try {
     const { username } = req.params;
-    console.log('username',username);
-    // Get the image URL from your database or another source if it's stored.
-    // Assuming you have saved the Imgbb image URL in your database or pass it as a query.
-    const imageUrl = req.query.imageUrl;
-    console.log('imageUrl',imageUrl);
-    if (!imageUrl) {
-      return res.status(400).send('Image URL is required');
+    const sharedBanner = await SharedBanner.findOne({ username });
+    if (sharedBanner) {
+      res.json(sharedBanner.userData);
+    } else {
+      res.status(404).json({ error: "User not found" });
     }
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="Check out my GitHub Stats!">
-        <meta name="twitter:description" content="Check out my contributions, streaks, and more.">
-        <meta name="twitter:image" content="${imageUrl}">
-        <title>Git-Stats - ${username}</title>
-      </head>
-      <body>
-        <h1>Check out my GitHub Stats!</h1>
-        <img src="${imageUrl}" alt="GitHub Stats for ${username}">
-      </body>
-      </html>
-    `;
-
-    res.send(htmlContent);
   } catch (error) {
-    console.error('Error generating share page:', error);
-    res.status(500).send('Internal server error');
+    console.error("Error fetching user data:", error);
+    res.status(500).json({ error: "Error fetching user data" });
   }
 });
+
+// New route to serve the HTML for the Twitter Card
+app.get("/api/share/:username", (req, res) => {
+  const { username } = req.params;
+  const imageUrl = req.query.imageUrl;
+
+  const htmlContent = `
+    <html>
+      <head>
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Check out ${username}'s GitHub Stats!">
+        <meta name="twitter:description" content="Contributions, streaks, and more!">
+        <meta name="twitter:image" content="${imageUrl}">
+        <meta name="twitter:image:alt" content="${username}'s GitHub stats">
+        <title>${username}'s GitHub Stats</title>
+      </head>
+      <body>
+        <script>
+          window.location.href = 'https://git-statss.netlify.app/share/${username}?imageUrl=${encodeURIComponent(
+    imageUrl
+  )}';
+        </script>
+      </body>
+    </html>
+  `;
+
+  res.send(htmlContent);
+});
+
 // Get user count endpoint
 
-
-app.get('/api/user-count', async (req, res) => {
+app.get("/api/user-count", async (req, res) => {
   try {
     let userCount = await UserCount.findOne();
     if (!userCount) {
@@ -93,12 +128,12 @@ app.get('/api/user-count', async (req, res) => {
     }
     res.json({ totalUsers: userCount.count });
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching user count' });
+    res.status(500).json({ error: "Error fetching user count" });
   }
 });
 
 // Increment user count endpoint
-app.post('/api/increment-user', async (req, res) => {
+app.post("/api/increment-user", async (req, res) => {
   try {
     let userCount = await UserCount.findOne();
     if (!userCount) {
@@ -109,33 +144,35 @@ app.post('/api/increment-user', async (req, res) => {
     await userCount.save();
     res.json({ totalUsers: userCount.count });
   } catch (error) {
-    res.status(500).json({ error: 'Error incrementing user count' });
+    res.status(500).json({ error: "Error incrementing user count" });
   }
 });
 
 // Get leaderboard endpoint
-app.get('/api/leaderboard', async (req, res) => {
+app.get("/api/leaderboard", async (req, res) => {
   try {
     const leaderboard = await Leaderboard.findOne();
-    res.json(leaderboard || {
-      topContributions: { username: 'N/A', contributions: 0 },
-      topFollowers: { username: 'N/A', followers: 0 }
-    });
+    res.json(
+      leaderboard || {
+        topContributions: { username: "N/A", contributions: 0 },
+        topFollowers: { username: "N/A", followers: 0 },
+      }
+    );
   } catch (error) {
-    res.status(500).json({ error: 'Error fetching leaderboard' });
+    res.status(500).json({ error: "Error fetching leaderboard" });
   }
 });
 
 // Update leaderboard endpoint
-app.post('/api/update-leaderboard', async (req, res) => {
+app.post("/api/update-leaderboard", async (req, res) => {
   try {
     const { username, contributions, followers } = req.body;
-    console.log('in update leaderbo', req.body);
+    console.log("in update leaderbo", req.body);
     let leaderboard = await Leaderboard.findOne();
     if (!leaderboard) {
       leaderboard = new Leaderboard({
         topContributions: { username, contributions },
-        topFollowers: { username, followers }
+        topFollowers: { username, followers },
       });
     } else {
       if (contributions > leaderboard.topContributions.contributions) {
@@ -149,12 +186,18 @@ app.post('/api/update-leaderboard', async (req, res) => {
     await leaderboard.save();
     res.json(leaderboard);
   } catch (error) {
-    res.status(500).json({ error: 'Error updating leaderboard' });
+    res.status(500).json({ error: "Error updating leaderboard" });
   }
 });
 
+// Move the 404 handler to the end
+app.use((req, res, next) => {
+  res.status(404).json({ error: "Not Found" });
+});
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`Server running on port ${PORT}`)
+);
 
 // Debug: Log environment variables
 // console.log('COHERE_API_KEY:', process.env.CO_API_KEY);
@@ -162,8 +205,8 @@ app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`))
 // let lastCallTime = 0;
 // const CALL_INTERVAL = 1000; // Set to 1 second or whatever interval you prefer
 // Initialize the Cohere client
-// const cohere = new CohereClient({ 
-//   apiKey: process.env.CO_API_KEY 
+// const cohere = new CohereClient({
+//   apiKey: process.env.CO_API_KEY
 // });
 
 // app.post('/analyze', async (req, res) => {
@@ -200,7 +243,7 @@ app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`))
 //           { text: "Migrate database to a new system", label: "intermediate" },
 //           { text: "Optimize algorithms for large data sets", label: "advanced" }
 //         ]
-        
+
 //       });
 
 //       return {
@@ -218,4 +261,3 @@ app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`))
 //     res.status(500).json({ error: 'AI on Work... Have patience please!', message: err.message });
 //   }
 // });
-
