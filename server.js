@@ -40,7 +40,50 @@ const Leaderboard = mongoose.model('Leaderboard', LeaderboardSchema);
 app.get('/', (req, res) => {
   res.send('GitHubxCohereAI Backend is running');
 });
+
+
+
+// New route to serve the HTML for the Twitter Card
+app.get('/share/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    console.log('username',username);
+    // Get the image URL from your database or another source if it's stored.
+    // Assuming you have saved the Imgbb image URL in your database or pass it as a query.
+    const imageUrl = req.query.imageUrl;
+    onsole.log('imageUrl',imageUrl);
+    if (!imageUrl) {
+      return res.status(400).send('Image URL is required');
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Check out my GitHub Stats!">
+        <meta name="twitter:description" content="Check out my contributions, streaks, and more.">
+        <meta name="twitter:image" content="${imageUrl}">
+        <title>Git-Stats - ${username}</title>
+      </head>
+      <body>
+        <h1>Check out my GitHub Stats!</h1>
+        <img src="${imageUrl}" alt="GitHub Stats for ${username}">
+      </body>
+      </html>
+    `;
+
+    res.send(htmlContent);
+  } catch (error) {
+    console.error('Error generating share page:', error);
+    res.status(500).send('Internal server error');
+  }
+});
 // Get user count endpoint
+
+
 app.get('/api/user-count', async (req, res) => {
   try {
     let userCount = await UserCount.findOne();
