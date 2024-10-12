@@ -90,31 +90,73 @@ app.get("/api/user/:username", async (req, res) => {
 });
 
 // New route to serve the HTML for the Twitter Card
-app.get("/api/share/:username", (req, res) => {
-  const { username } = req.params;
-  const imageUrl = req.query.imageUrl;
+app.get('/api/share/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { imageUrl } = req.query;
 
-  const htmlContent = `
-    <html>
+    // Fetch user data
+    const userData = await fetchUserData(username);
+
+    // Render the shared page
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
       <head>
-        <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="Check out ${username}'s GitHub Stats!">
-        <meta name="twitter:description" content="Contributions, streaks, and more!">
-        <meta name="twitter:image" content="${imageUrl}">
-        <meta name="twitter:image:alt" content="${username}'s GitHub stats">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${username}'s GitHub Stats</title>
+        <style>
+          /* Add your CSS styles here */
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+          }
+          .container {
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+          }
+          img {
+            max-width: 100%;
+            height: auto;
+          }
+        </style>
       </head>
       <body>
+        <div class="container">
+          <h1>${username}'s GitHub Stats</h1>
+          <img src="${imageUrl}" alt="${username}'s GitHub Stats" />
+          <p>Contributions: ${userData.contributions}</p>
+          <p>Streak: ${userData.streak} days</p>
+          <!-- Add more user data here -->
+        </div>
         <script>
-          window.location.href = 'https://git-statss.netlify.app/share/${username}?imageUrl=${encodeURIComponent(
-    imageUrl
-  )}';
+          // Service Worker Registration
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+              navigator.serviceWorker.register('/sw.js').then(registration => {
+                console.log('ServiceWorker registration successful');
+              }).catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+              });
+            });
+          }
         </script>
       </body>
-    </html>
-  `;
-
-  res.send(htmlContent);
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error in /api/share:', error);
+    res.status(500).send('An error occurred while fetching the shared stats. Please try again.');
+  }
 });
 
 // Get user count endpoint
