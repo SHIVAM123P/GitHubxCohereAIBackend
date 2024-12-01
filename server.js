@@ -14,10 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 mongoose
-  .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 // User Count Schema
@@ -41,9 +38,34 @@ const LeaderboardSchema = new mongoose.Schema({
 
 const Leaderboard = mongoose.model("Leaderboard", LeaderboardSchema);
 
+// New GitHub User Schema
+// New GitHub User Schema
+const GitHubUserSchema = new mongoose.Schema({
+  username: { type: String, unique: true, required: true }, // Required field
+  contributions: { type: Number, default: 0 }, // Optional
+  streak: { type: Number, default: 0 }, // Optional
+  openSourceContributions: { type: Number, default: 0 }, // Optional
+  joinedDate: { type: Date }, // Optional
+  followers: { type: Number, default: 0 }, // Optional
+  following: { type: Number, default: 0 }, // Optional
+  repositories: { type: Number, default: 0 }, // Optional
+  stars: { type: Number, default: 0 }, // Optional
+  lastUpdated: { type: Date, default: Date.now }, // Optional
+  avatar_url:
+  {
+      data: Buffer,
+      contentType: String
+  },
+  html_url:{data: Buffer,
+    contentType: String}
+});
+;
+
+const GitHubUser = mongoose.model("GitHubUser", GitHubUserSchema);
 app.get("/", (req, res) => {
   res.send("GitHubxCohereAI Backend is running");
 });
+
 
 // Backend: Add this to your existing schemas
 const SharedBannerSchema = new mongoose.Schema({
@@ -54,10 +76,103 @@ const SharedBannerSchema = new mongoose.Schema({
 
 const SharedBanner = mongoose.model("SharedBanner", SharedBannerSchema);
 
+
+// New route to save or update GitHub user data
+app.post("/api/save-github-user", async (req, res) => {
+  try {
+    const {
+      username,
+      contributions = 0, // Default to 0 if not provided
+      streak = 0, // Default to 0 if not provided
+      openSourceContributions = 0, // Default to 0 if not provided
+      created_at, // This is still optional
+      followers = 0, // Default to 0 if not provided
+      following = 0, // Default to 0 if not provided
+      repositories = 0, // Default to 0 if not provided
+      stars = 0, // Default to 0 if not provided
+      avatar_url,
+      html_url
+    } = req.body;
+
+    const userData = {
+      contributions,
+      streak,
+      openSourceContributions,
+      joinedDate: created_at,
+      followers,
+      following,
+      repositories,
+      stars,
+      lastUpdated: new Date(),
+      avatar_url,
+      html_url
+    };
+
+    const user = await GitHubUser.findOneAndUpdate(
+      { username },
+      userData,
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({ message: "GitHub user data saved successfully", user });
+  } catch (error) {
+    console.error("Error saving GitHub user data:", error);
+    res.status(500).json({ error: "Error saving GitHub user data" });
+  }
+});
+
+
+
+app.get("/api/github-user/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await GitHubUser.findOne({ username });
+    if (user) {
+      res.json(user);
+    } else {
+      res.status(404).json({ error: "GitHub user not found" });
+    }
+  } catch (error) {
+    console.error("Error fetching GitHub user data:", error);
+    res.status(500).json({ error: "Error fetching GitHub user data" });
+  }
+});
+
+// New route to find GitHub twin
+app.get("/api/github-twin/:username", async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await GitHubUser.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const twin = await GitHubUser.findOne({
+      username: { $ne: username },
+      contributions: { $gte: user.contributions * 0.2, $lte: user.contributions * 3.5 },
+      // followers: { $gte: user.followers * 0.5, $lte: user.followers * 1.5 },
+      // following: { $gte: user.following * 0.5, $lte: user.following * 1.5 },
+    }).sort({ lastUpdated: -1 });
+
+    if (twin) {
+      res.json({
+        message: `Your GitHub twin is ${twin.username}! You both have around ${user.contributions} contributions.`,
+        twin: twin
+      });
+    } else {
+      res.json({ message: "No GitHub twin found at the moment." });
+    }
+  } catch (error) {
+    console.error("Error finding GitHub twin:", error);
+    res.status(500).json({ error: "Error finding GitHub twin" });
+  }
+});
 // Update the save-shared-banner endpoint
 app.post("/api/save-shared-banner", async (req, res) => {
   try {
     const { username, imageUrl, userData } = req.body;
+    console.log('userdata', userData);
     let sharedBanner = await SharedBanner.findOne({ username });
     if (sharedBanner) {
       sharedBanner.imageUrl = imageUrl;
