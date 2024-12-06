@@ -7,10 +7,18 @@ const app = express();
 // CORS configuration with specific origin
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://git-statss.netlify.app/",
+  "https://git-statss.netlify.app"
 ];
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
+}));
 
-app.use(cors());
 app.use(express.json());
 
 mongoose
