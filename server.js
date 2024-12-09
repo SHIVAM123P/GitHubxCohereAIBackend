@@ -331,26 +331,41 @@ app.get("/api/leaderboard", async (req, res) => {
 // Update leaderboard endpoint
 app.post("/api/update-leaderboard", async (req, res) => {
   try {
-    const { username, contributions, followers } = req.body;
-    console.log("in update leaderbo", req.body);
+    const { username, contributions } = req.body;
+    console.log("in update leaderboard", req.body);
+
     let leaderboard = await Leaderboard.findOne();
+
     if (!leaderboard) {
+      // If no leaderboard exists, create a new one with the first contributor
       leaderboard = new Leaderboard({
-        topContributions: { username, contributions },
-        topFollowers: { username, followers },
+        topContributors: [{ username, contributions }]
       });
     } else {
-      if (contributions > leaderboard.topContributions.contributions) {
-        leaderboard.topContributions = { username, contributions };
+      // Check if the username already exists in the top contributors
+      const existingContributorIndex = leaderboard.topContributors.findIndex(
+        (contributor) => contributor.username === username
+      );
+
+      if (existingContributorIndex !== -1) {
+        // Update existing contributor's contributions
+        leaderboard.topContributors[existingContributorIndex].contributions = contributions;
+      } else {
+        // Add new contributor
+        leaderboard.topContributors.push({ username, contributions });
       }
-      if (followers > leaderboard.topFollowers.followers) {
-        leaderboard.topFollowers = { username, followers };
-      }
+
+      // Sort contributors by contributions in descending order
+      leaderboard.topContributors.sort((a, b) => b.contributions - a.contributions);
+
+      // Keep only top 5 contributors
+      leaderboard.topContributors = leaderboard.topContributors.slice(0, 5);
     }
 
     await leaderboard.save();
-    res.json(leaderboard);
+    res.json(leaderboard.topContributors);
   } catch (error) {
+    console.error("Error updating leaderboard:", error);
     res.status(500).json({ error: "Error updating leaderboard" });
   }
 });
