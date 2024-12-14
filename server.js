@@ -36,6 +36,7 @@ const UserCount = mongoose.model("UserCount", UserCountSchema);
 const LeaderboardSchema = new mongoose.Schema({
   topContributors: [
     {
+      avatar_url: String,
       username: String,
       contributions: Number,
     },
@@ -313,7 +314,7 @@ app.post("/api/increment-user", async (req, res) => {
 });
 
 // Get leaderboard endpoint
-// Get leaderboard endpoint
+
 app.get("/api/leaderboard", async (req, res) => {
   try {
     const leaderboard = await Leaderboard.findOne();
@@ -326,16 +327,16 @@ app.get("/api/leaderboard", async (req, res) => {
 
 
 // Update leaderboard endpoint
-// Update leaderboard endpoint
 app.post("/api/update-leaderboard", async (req, res) => {
   try {
-    const { username, contributions } = req.body;
+    const {avatar_url, username, contributions } = req.body;
+    console.log("data in req.body in update-leaderboard", req.body);
     let leaderboard = await Leaderboard.findOne();
 
     if (!leaderboard) {
       // If no leaderboard exists, create a new one
       leaderboard = new Leaderboard({
-        topContributors: [{ username, contributions }],
+        topContributors: [{ avatar_url,username, contributions }],
       });
     } else {
       // Check if the user already exists in the leaderboard
@@ -349,7 +350,7 @@ app.post("/api/update-leaderboard", async (req, res) => {
           contributions;
       } else {
         // Add new contributor
-        leaderboard.topContributors.push({ username, contributions });
+        leaderboard.topContributors.push({ avatar_url,username, contributions });
       }
 
       // Sort contributors by contributions in descending order
