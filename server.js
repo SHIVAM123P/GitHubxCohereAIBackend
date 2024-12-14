@@ -34,17 +34,16 @@ const UserCount = mongoose.model("UserCount", UserCountSchema);
 
 // Leaderboard Schema
 const LeaderboardSchema = new mongoose.Schema({
-  topContributions: {
-    username: String,
-    contributions: Number,
-  },
-  topFollowers: {
-    username: String,
-    followers: Number,
-  },
+  topContributors: [
+    {
+      username: String,
+      contributions: Number,
+    },
+  ],
 });
 
 const Leaderboard = mongoose.model("Leaderboard", LeaderboardSchema);
+
 
 // New GitHub User Schema
 // New GitHub User Schema
@@ -314,42 +313,40 @@ app.post("/api/increment-user", async (req, res) => {
 });
 
 // Get leaderboard endpoint
+// Get leaderboard endpoint
 app.get("/api/leaderboard", async (req, res) => {
   try {
     const leaderboard = await Leaderboard.findOne();
-    res.json(
-      leaderboard || {
-        topContributions: { username: "N/A", contributions: 0 },
-        topFollowers: { username: "N/A", followers: 0 },
-      }
-    );
+    res.json(leaderboard ? leaderboard.topContributors : []);
   } catch (error) {
+    console.error("Error fetching leaderboard:", error);
     res.status(500).json({ error: "Error fetching leaderboard" });
   }
 });
 
+
+// Update leaderboard endpoint
 // Update leaderboard endpoint
 app.post("/api/update-leaderboard", async (req, res) => {
   try {
     const { username, contributions } = req.body;
-    console.log("in update leaderboard", req.body);
-
     let leaderboard = await Leaderboard.findOne();
 
     if (!leaderboard) {
-      // If no leaderboard exists, create a new one with the first contributor
+      // If no leaderboard exists, create a new one
       leaderboard = new Leaderboard({
-        topContributors: [{ username, contributions }]
+        topContributors: [{ username, contributions }],
       });
     } else {
-      // Check if the username already exists in the top contributors
+      // Check if the user already exists in the leaderboard
       const existingContributorIndex = leaderboard.topContributors.findIndex(
         (contributor) => contributor.username === username
       );
 
       if (existingContributorIndex !== -1) {
         // Update existing contributor's contributions
-        leaderboard.topContributors[existingContributorIndex].contributions = contributions;
+        leaderboard.topContributors[existingContributorIndex].contributions =
+          contributions;
       } else {
         // Add new contributor
         leaderboard.topContributors.push({ username, contributions });
@@ -358,7 +355,7 @@ app.post("/api/update-leaderboard", async (req, res) => {
       // Sort contributors by contributions in descending order
       leaderboard.topContributors.sort((a, b) => b.contributions - a.contributions);
 
-      // Keep only top 5 contributors
+      // Keep only the top 5 contributors
       leaderboard.topContributors = leaderboard.topContributors.slice(0, 5);
     }
 
@@ -369,6 +366,7 @@ app.post("/api/update-leaderboard", async (req, res) => {
     res.status(500).json({ error: "Error updating leaderboard" });
   }
 });
+
 
 // Move the 404 handler to the end
 app.use((req, res, next) => {
