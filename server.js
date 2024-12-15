@@ -129,6 +129,19 @@ app.post("/api/save-github-user", async (req, res) => {
   }
 });
 
+// New API route to get the last 5 users who interacted
+app.get("/api/last-5-users", async (req, res) => {
+  try {
+    const users = await GitHubUser.find()
+      .sort({ lastUpdated: -1 }) // Sort by latest interaction
+      .limit(5); // Get the latest 5 users
+
+    res.json(users);
+  } catch (error) {
+    console.error("Error fetching last 5 users:", error);
+    res.status(500).json({ error: "Error fetching users" });
+  }
+});
 
 
 app.get("/api/github-user/:username", async (req, res) => {
